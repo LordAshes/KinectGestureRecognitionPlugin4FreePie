@@ -18,3 +18,5 @@ Installation Of Plugin In FreePie:
 2. Place the provided "Microsoft.Kinect.dll" in the FreePie folder.
 3. Optional: Copy Gexture.xml to the FreePie folder. This is a sample gesture file.
 4. Run FreePie.
+
+Note: The Microsoft.Kinect.dll comes from Microsoft's Development Toolkit for Kinect Sensors. I was not written as part of this project.
