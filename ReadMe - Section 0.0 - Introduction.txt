@@ -11,3 +11,9 @@ evaluate the joints involved in gestures as opposed to evaluatin all relationshi
 The plugin is designed to make use of the gesture recognition plugin as easy as possible hiding the
 complex processing from the user and exposing only easy to use methods for starting, defining and
 stopping the gesture recognition process.
+
+Installation Of Plugin In FreePie:
+
+1. Once compiled, place the "KinectGesturePlugin.dll" in the FreePie\Plugins folder.
+2. Place the provided "Microsoft.Kinect.dll" in the FreePie folder.
+3. Run FreePie.
