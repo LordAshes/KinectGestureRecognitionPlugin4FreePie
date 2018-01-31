@@ -134,7 +134,7 @@ namespace FreePiePlugin
                 case 1:
                     property.Name = "GestureFileName";
                     property.Caption = "Gesture File";
-                    property.DefaultValue = "Gexture.xml";
+                    property.DefaultValue = "Gesture.xml";
                     property.HelpText = "Path And File Name Of Gesture File";
                     return true;
             }
