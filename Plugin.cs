@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using FreePIE.Core.Contracts;
 
 namespace FreePiePlugin
@@ -44,6 +42,16 @@ namespace FreePiePlugin
         XChange = GestureParser.Relationship.XChange,
         YChange = GestureParser.Relationship.YChange,
         ZChange = GestureParser.Relationship.ZChange
+    }
+
+    [Global(Name = "KinectGestureObjectInfo")]
+    public class OrientationInfo
+    {
+        public int playerId { get; set; }
+        public bool tracked { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+        public float Z { get; set; }
     }
 
     [GlobalType(Type = typeof(KinectGesture))]
@@ -359,6 +367,68 @@ namespace FreePiePlugin
         public List<string> GetRecognitionProcessEvents(bool clear = true)
         {
             return this.thisKinectGesturePlugin.GetRecognitionProcessEvents(clear);
+        }
+
+        public OrientationInfo GetPlayerInfo(int? playerId = null)
+        {
+            if (this.thisKinectGesturePlugin == null) { return null; }
+            if (this.thisKinectGesturePlugin.gestureProcessor == null) { return null; }
+            if (this.thisKinectGesturePlugin.gestureProcessor.Skeletons == null) { return null; }
+            Microsoft.Kinect.Skeleton skeleton = null;
+            if (playerId == null)
+            {
+                foreach (Microsoft.Kinect.Skeleton s in this.thisKinectGesturePlugin.gestureProcessor.Skeletons) { if (s.TrackingState != Microsoft.Kinect.SkeletonTrackingState.NotTracked) { skeleton = s; break; } }
+            }
+            else
+            {
+                foreach (Microsoft.Kinect.Skeleton s in this.thisKinectGesturePlugin.gestureProcessor.Skeletons) { if (s.TrackingId == playerId.Value) { skeleton = s; break; } }
+            }
+            if(skeleton!=null)
+            {
+                return new OrientationInfo()
+                {
+                    playerId = skeleton.TrackingId,
+                    tracked = (skeleton.TrackingState != Microsoft.Kinect.SkeletonTrackingState.NotTracked),
+                    X = skeleton.Position.X,
+                    Y = skeleton.Position.Y,
+                    Z = skeleton.Position.Z,
+                };
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public OrientationInfo GetJointInfo(KinectJoint joint, int? playerId = null)
+        {
+            if (this.thisKinectGesturePlugin == null) { return null; }
+            if (this.thisKinectGesturePlugin.gestureProcessor == null) { return null; }
+            if (this.thisKinectGesturePlugin.gestureProcessor.Skeletons == null) { return null; }
+            Microsoft.Kinect.Skeleton skeleton = null;
+            if (playerId == null)
+            {
+                foreach (Microsoft.Kinect.Skeleton s in this.thisKinectGesturePlugin.gestureProcessor.Skeletons) { if (s.TrackingState != Microsoft.Kinect.SkeletonTrackingState.NotTracked) { skeleton = s; break; } }
+            }
+            else
+            {
+                foreach (Microsoft.Kinect.Skeleton s in this.thisKinectGesturePlugin.gestureProcessor.Skeletons) { if (s.TrackingId == playerId.Value) { skeleton = s; break; } }
+            }
+            if (skeleton != null)
+            {
+                return new OrientationInfo()
+                {
+                    playerId = skeleton.TrackingId,
+                    tracked = (skeleton.Joints[(Microsoft.Kinect.JointType)joint].TrackingState != Microsoft.Kinect.JointTrackingState.NotTracked),
+                    X = skeleton.Joints[(Microsoft.Kinect.JointType)joint].Position.X,
+                    Y = skeleton.Joints[(Microsoft.Kinect.JointType)joint].Position.Y,
+                    Z = skeleton.Joints[(Microsoft.Kinect.JointType)joint].Position.Z,
+                };
+            }
+            else
+            {
+                return null;
+            }
         }
     }
 }
