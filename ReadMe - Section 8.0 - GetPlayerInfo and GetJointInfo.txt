@@ -21,7 +21,7 @@ GetJointInfo(joint, playerId = null)
 Similar to the above method except that the X, Y, Z properties are provided for the specified joint
 of the specified player. Again if provided playerId is null then the first tracked playerId is used.
 
-Note:
+Note 1:
 
 Both these function will return null if gesture recognition has not been started, if there are no
 players to track or if there is no corresponding skeleton for the provided playerId (typically
@@ -34,3 +34,11 @@ if not info is None:
 
 There is a know bug that the OrientationInfo class (returned by these methods) does not show up in
 the type suggestions. However, it can still be used.
+
+Note 2:
+
+When using these methods with an event hander (i.e. not just a calibration reading at the start),
+typically they should be used with the processing event as opposed to the update event. This is
+because the update event fires only when a gesture has been recognized while the processing event
+fires more often. This will then allow the results of the methods to be obtained not only when a
+gesture is completed.
