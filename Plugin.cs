@@ -74,6 +74,9 @@ namespace FreePiePlugin
         private int lastSuccessCondition = -1;
         private int lastFailureCondition = -1;
 
+        private List<int> activePlayers = new List<int>();
+        private Dictionary<int,int> inactivePlayers = new Dictionary<int, int>();
+
         public object CreateGlobal()
         {
             this.global = new KinectGesture(this);
@@ -145,6 +148,12 @@ namespace FreePiePlugin
                     property.DefaultValue = "Gesture.xml";
                     property.HelpText = "Path And File Name Of Gesture File";
                     return true;
+                case 2:
+                    property.Name = "DropFrames";
+                    property.Caption = "Inactive Frames";
+                    property.DefaultValue = "360";
+                    property.HelpText = "Remove Player After N Inactive Frames";
+                    return true;
             }
             return false;
         }
@@ -157,7 +166,69 @@ namespace FreePiePlugin
 
         public void DoBeforeNextExecute()
         {
-            //This method will be executed each iteration of the script
+            if (gestureProcessor != null)
+            {
+                if (gestureProcessor.Skeletons != null)
+                {
+                    string ids = "";
+                    List<int> currentPlayers = new List<int>();
+                    foreach (Microsoft.Kinect.Skeleton s in gestureProcessor.Skeletons)
+                    {
+                        if (s != null){ ids = ids + s.TrackingId + ","; currentPlayers.Add(s.TrackingId); }
+                    }
+                    foreach (Microsoft.Kinect.Skeleton s in gestureProcessor.Skeletons)
+                    {
+                        if (s != null)
+                        {
+                            if (s.TrackingId != 0)
+                            {
+                                if (!activePlayers.Contains(s.TrackingId))
+                                {
+                                    if (inactivePlayers.ContainsKey(s.TrackingId))
+                                    {
+                                        inactivePlayers.Remove(s.TrackingId);
+                                        processingEvents.Add("Player Id " + s.TrackingId + " Active");
+                                        this.global.OnUpdateProcess(new EventArgs());
+                                    }
+                                    else
+                                    {
+                                        processingEvents.Add("Player Id " + s.TrackingId + " Added");
+                                        this.global.OnUpdateProcess(new EventArgs());
+                                    }
+                                }
+                            }
+                            ids = ids + s.TrackingId + ",";
+                        }
+                    }
+                    foreach (int id in activePlayers)
+                    {
+                        if (id != 0)
+                        {
+                            if (!currentPlayers.Contains(id))
+                            {
+                                inactivePlayers.Add(id, 1);
+                                processingEvents.Add("Player Id "+id+" Inactivated For 1 Of "+this.properties["DropFrames"]+" Frames");
+                                this.global.OnUpdateProcess(new EventArgs());
+                            }
+                        }
+                    }
+                    activePlayers = currentPlayers;
+                    for(int p = 0; p<inactivePlayers.Count; p++)
+                    {
+                        int id = inactivePlayers.ElementAt(p).Key;
+                        inactivePlayers[id]++;
+                        processingEvents.Add("Player Id "+id+" Inactive For "+ inactivePlayers[id] + " Of " + this.properties["DropFrames"] + " Frames");
+                        this.global.OnUpdateProcess(new EventArgs());
+                        if (inactivePlayers[id] >= int.Parse(this.properties["DropFrames"].ToString()))
+                        {
+                            inactivePlayers.Remove(id);
+                            p--;
+                            processingEvents.Add("Player Id " + id+" Removed");
+                            this.global.OnUpdateProcess(new EventArgs());
+                        }
+                    }
+                }
+            }
         }
 
         public void StartRecognition()
