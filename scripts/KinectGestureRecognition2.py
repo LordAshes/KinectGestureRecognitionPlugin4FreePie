@@ -1,29 +1,14 @@
 #
 # Identify Gestures
 #
-def update():
-	# By default the gesture recognition dictionary is cleared after a GetRecognizedGesture() call so that succesive calls do not include previously identified gestures.
-	# To peek at the gesture dictionary without clearing it, call the method with an optional parameter of False.
-	gestures = KinectGestures.GetRecognizedGesture()
-	for player in gestures:
-		for gesture in gestures[player]:
-			diagnostics.debug("Player %s generated %s" % (player, gesture))
+def update(p,g):
+	diagnostics.debug("Player %s generated gesture %s" % (p, g))
 
 #
 # Identify Processing Of Gestures
 #
-def process():
-	# By default the event processing list is cleared after a GetRecognitionProcessEvents() call so that succesive calls do not include previously identified events.
-	# To peek at the event processing list without clearing it, call the method with an optional parameter of False.
-	events = KinectGestures.GetRecognitionProcessEvents()
-	for event in events:
-		diagnostics.debug("%s" % event);
-
-#
-# Identify Exceptions
-#
-def exception():
-	diagnostics.debug("%s" % KinectGestures.GetRecognitionProcessEvents().ToString())
+def process(e):
+	diagnostics.debug("%s" % e);
 
 #
 # Setup Gestures
