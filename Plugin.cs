@@ -35,6 +35,7 @@ namespace FreePiePlugin
         Above = GestureParser.Relationship.Above,
         Behind = GestureParser.Relationship.Behind,
         Below = GestureParser.Relationship.Below,
+        Distance = GestureParser.Relationship.Distance,
         InfrontOf = GestureParser.Relationship.InfrontOf,
         LeftOf = GestureParser.Relationship.LeftOf,
         None = GestureParser.Relationship.None,
@@ -61,9 +62,6 @@ namespace FreePiePlugin
 
         public event EventHandler Started = new EventHandler((e, a) => { });
 
-        public Dictionary<int, List<string>> recognizedGestures = new Dictionary<int, List<string>>();
-        public List<string> processingEvents = new List<string>();
-
         public SensorSelector kinectSensor = null;
         public GestureParser gestureProcessor = null;
 
@@ -87,17 +85,20 @@ namespace FreePiePlugin
         {
             kinectSensor = new SensorSelector((s) =>
             {
-                processingEvents.Add("Sensor=" + s.status.ToString());
-                this.global.OnUpdateProcess(new EventArgs());
+                this.global.RaiseProcessingEvent("Sensor=" + s.status.ToString());
                 gestureProcessor = new GestureParser(kinectSensor.Kinect, (e) =>
                 {
-                    if (!recognizedGestures.ContainsKey(e.Player)) { recognizedGestures.Add(e.Player, new List<string>()); }
-                    recognizedGestures[e.Player].Add(e.Gesture);
-                    this.global.OnUpdate(new EventArgs());
+                    this.global.RaiseUpdateEvent(e.Player,e.Gesture);
                 }, (e) =>
                 {
-                    processingEvents.Add(e);
-                    this.global.OnUpdateProcess(new EventArgs());
+                    if (e.ToUpper() == "FRAME")
+                    {
+                        this.global.RaiseFrameEvent();
+                    }
+                    else
+                    {
+                        this.global.RaiseProcessingEvent(e);
+                    }
                 });
                 gestureProcessor.Gestures.Clear();
                 if ((bool)this.properties["UseGestureFile"] == true)
@@ -187,13 +188,11 @@ namespace FreePiePlugin
                                     if (inactivePlayers.ContainsKey(s.TrackingId))
                                     {
                                         inactivePlayers.Remove(s.TrackingId);
-                                        processingEvents.Add("Player Id " + s.TrackingId + " Active");
-                                        this.global.OnUpdateProcess(new EventArgs());
+                                        this.global.RaisePlayerEvent(s.TrackingId, "Active");
                                     }
                                     else
                                     {
-                                        processingEvents.Add("Player Id " + s.TrackingId + " Added");
-                                        this.global.OnUpdateProcess(new EventArgs());
+                                        this.global.RaisePlayerEvent(s.TrackingId,"Added");
                                     }
                                 }
                             }
@@ -207,8 +206,7 @@ namespace FreePiePlugin
                             if (!currentPlayers.Contains(id))
                             {
                                 inactivePlayers.Add(id, 1);
-                                processingEvents.Add("Player Id "+id+" Inactivated For 1 Of "+this.properties["DropFrames"]+" Frames");
-                                this.global.OnUpdateProcess(new EventArgs());
+                                this.global.RaisePlayerEvent(id,"Inactivated For 1 Of "+this.properties["DropFrames"]+" Frames");
                             }
                         }
                     }
@@ -217,14 +215,12 @@ namespace FreePiePlugin
                     {
                         int id = inactivePlayers.ElementAt(p).Key;
                         inactivePlayers[id]++;
-                        processingEvents.Add("Player Id "+id+" Inactive For "+ inactivePlayers[id] + " Of " + this.properties["DropFrames"] + " Frames");
-                        this.global.OnUpdateProcess(new EventArgs());
+                        this.global.RaisePlayerEvent(id,"Inactive For "+ inactivePlayers[id] + " Of " + this.properties["DropFrames"] + " Frames");
                         if (inactivePlayers[id] >= int.Parse(this.properties["DropFrames"].ToString()))
                         {
                             inactivePlayers.Remove(id);
                             p--;
-                            processingEvents.Add("Player Id " + id+" Removed");
-                            this.global.OnUpdateProcess(new EventArgs());
+                            this.global.RaisePlayerEvent(id,"Removed");
                         }
                     }
                 }
@@ -319,27 +315,6 @@ namespace FreePiePlugin
             lastGesture.steps.ElementAt(stepNumber).FailureConditions.ElementAt(conditionNumber).deviation = deviation;
         }
 
-        public Dictionary<int, List<string>> GetRecognizedGesture(bool clear = true)
-        {
-            Dictionary<int, List<string>> retList = recognizedGestures;
-            if (clear) { recognizedGestures.Clear(); }
-            return retList;
-        }
-
-        public List<string> GetRecognizedGestureByPlayerId(int playerId, bool clear = true)
-        {
-            List<string> retList = recognizedGestures[playerId];
-            if (clear) { recognizedGestures[playerId].Clear(); }
-            return retList;
-        }
-
-        public List<string> GetRecognitionProcessEvents(bool clear = true)
-        {
-            List<string> retList = new List<string>(processingEvents.ToArray());
-            if (clear) { processingEvents.Clear(); }
-            return retList;
-        }
-
         private GestureParser.GestureSequences GetGesture(string gestureName)
         {
             foreach (GestureParser.GestureSequences gesture in gestureProcessor.Gestures)
@@ -355,11 +330,21 @@ namespace FreePiePlugin
     {
         private readonly KinectGesturePlugin thisKinectGesturePlugin;
 
-        public event Action update;
-        public void OnUpdate(EventArgs e) { if (update != null) { update(); } }
+        public event UpdateHandler update;
+        public delegate void UpdateHandler(int playerId, string gesture);
+        public void RaiseUpdateEvent(int playerId, string gesture) { if (update != null) { update(playerId, gesture); } }
 
-        public event Action processing;
-        public void OnUpdateProcess(EventArgs e) { if (processing != null) { processing(); } }
+        public event ProcessingHandler processing;
+        public delegate void ProcessingHandler(string processingEvent);
+        public void RaiseProcessingEvent(string processingEvent) { if (processing != null) { processing(processingEvent); } }
+
+        public event PlayerHandler player;
+        public delegate void PlayerHandler(int playerId, string action);
+        public void RaisePlayerEvent(int playerId, string action) { if (player != null) { player(playerId, action); } }
+
+        public event FrameHandler frame;
+        public delegate void FrameHandler();
+        public void RaiseFrameEvent() { if (frame != null) { frame(); } }
 
         public KinectGesture(KinectGesturePlugin plugin)
         {
@@ -426,20 +411,6 @@ namespace FreePiePlugin
             this.thisKinectGesturePlugin.SetGestureStepFailureRelationship(gestureName, stepNumber, conditionNumber, actor, relationship, relative, deviation);
         }
 
-        public Dictionary<int, List<string>> GetRecognizedGesture(bool clear = true)
-        {
-            return this.thisKinectGesturePlugin.GetRecognizedGesture(clear);
-        }
-
-        public List<string> GetRecognizedGestureByPlayerId(int playerId, bool clear = true)
-        {
-            return this.thisKinectGesturePlugin.GetRecognizedGestureByPlayerId(playerId, clear);
-        }
-        public List<string> GetRecognitionProcessEvents(bool clear = true)
-        {
-            return this.thisKinectGesturePlugin.GetRecognitionProcessEvents(clear);
-        }
-
         public OrientationInfo GetPlayerInfo(int? playerId = null)
         {
             if (this.thisKinectGesturePlugin == null) { return null; }
@@ -500,6 +471,11 @@ namespace FreePiePlugin
             {
                 return null;
             }
+        }
+
+        public string Version()
+        {
+            return System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
         }
     }
 }

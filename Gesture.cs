@@ -56,24 +56,23 @@ namespace FreePiePlugin
             {
                 TrackingMode = trackingMode;
                 if (_callbackProcessing != null) { _callbackProcessing("Tracking Mode Set To " + TrackingMode.ToString()); }
-                JointsActorsUsed.Clear();
-                JointsRelativesUsed.Clear();
-                JointType? relativeJoint = null;
+
+                JointRelationshipsUsed.Clear();
                 foreach (GestureSequences gestureSequence in Gestures)
                 {
                     foreach (GestureSequenceStep step in gestureSequence.steps)
                     {
                         foreach (JointRelationship rel in step.SuccessConditions)
                         {
-                            if (!JointsActorsUsed.Contains(rel.actor)) { JointsActorsUsed.Add(rel.actor); }
-                            relativeJoint = rel.relative.ParseJoint();
-                            if (relativeJoint != null) { if (!JointsRelativesUsed.Contains(relativeJoint.Value)) { JointsRelativesUsed.Add(relativeJoint.Value); } }
+                            if (!JointRelationshipsUsed.ContainsKey(rel.actor)) { JointRelationshipsUsed.Add(rel.actor, new Dictionary<string, List<Relationship>>()); }
+                            if (!JointRelationshipsUsed[rel.actor].ContainsKey(rel.relative)) { JointRelationshipsUsed[rel.actor].Add(rel.relative, new List<Relationship>()); }
+                            if (!JointRelationshipsUsed[rel.actor][rel.relative].Contains(rel.relation)) { JointRelationshipsUsed[rel.actor][rel.relative].Add(rel.relation); }
                         }
                         foreach (JointRelationship rel in step.FailureConditions)
                         {
-                            if (!JointsActorsUsed.Contains(rel.actor)) { JointsActorsUsed.Add(rel.actor); }
-                            relativeJoint = rel.relative.ParseJoint();
-                            if (relativeJoint != null) { if (!JointsRelativesUsed.Contains(relativeJoint.Value)) { JointsRelativesUsed.Add(relativeJoint.Value); } }
+                            if (!JointRelationshipsUsed.ContainsKey(rel.actor)) { JointRelationshipsUsed.Add(rel.actor, new Dictionary<string, List<Relationship>>()); }
+                            if (!JointRelationshipsUsed[rel.actor].ContainsKey(rel.relative)) { JointRelationshipsUsed[rel.actor].Add(rel.relative, new List<Relationship>()); }
+                            if (!JointRelationshipsUsed[rel.actor][rel.relative].Contains(rel.relation)) { JointRelationshipsUsed[rel.actor][rel.relative].Add(rel.relation); }
                         }
                     }
                 }
@@ -101,7 +100,7 @@ namespace FreePiePlugin
         public List<GestureSequences> Gestures = new List<GestureSequences>();
         public Dictionary<string, SkeletonPoint> StaticReferences = new Dictionary<string, SkeletonPoint>();
         public Skeleton[] Skeletons = null;
-        public Dictionary<int, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, float>>>> Relationships = new Dictionary<int, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, float>>>>();
+        public Dictionary<int, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, Single>>>> Relationships = new Dictionary<int, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, Single>>>>();
         public SkeletonTrackingMode TrackingMode { get; private set; } = SkeletonTrackingMode.Default;
 
         public class GestureResult
@@ -127,6 +126,7 @@ namespace FreePiePlugin
             RightOf,
             InfrontOf,
             Behind,
+            Distance,
             XChange,
             YChange,
             ZChange
@@ -158,17 +158,16 @@ namespace FreePiePlugin
             public int progress { get; set; } = 0;
         }
 
+        private Dictionary<JointType,Dictionary<string,List<Relationship>>> JointRelationshipsUsed = new Dictionary<JointType, Dictionary<string, List<Relationship>>>();
         private Dictionary<int, Dictionary<JointType, SkeletonPoint>> ReferenceRelationships = new Dictionary<int, Dictionary<JointType, SkeletonPoint>>();
 
-        private List<JointType> JointsActorsUsed = new List<JointType>();
-        private List<JointType> JointsRelativesUsed = new List<JointType>();
         private Dictionary<int, Dictionary<string, System.Timers.Timer>> Players = new Dictionary<int, Dictionary<string, System.Timers.Timer>>();
 
         private Action<GestureResult> _callbackGesture = null;
         private Action<string> _callbackProcessing = null;
         private KinectSensor _sensor = null;
 
-        private void ProcessGestures(Skeleton ActiveSkeleton, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, float>>> Relationships)
+        private void ProcessGestures(Skeleton ActiveSkeleton, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, Single>>> Relationships)
         {
             foreach (GestureSequences sequence in Gestures)
             {
@@ -200,9 +199,24 @@ namespace FreePiePlugin
                                                 if (Relationships[rel.actor][rel.relative.ToString()][rel.relation] > rel.deviation) { stepCondition = false; break; }
                                             }
                                             break;
+                                        case Relationship.Distance:
+                                            // Check if distance based failure condition has exceeded the deviation limit
+                                            if (rel.deviation < 0)
+                                            {
+                                                if (Relationships[rel.actor][rel.relative.ToString()][rel.relation] < Math.Abs(rel.deviation)) { stepCondition = false; break; }
+                                            }
+                                            else
+                                            {
+                                                if (Relationships[rel.actor][rel.relative.ToString()][rel.relation] > rel.deviation) { stepCondition = false; break; }
+                                            }
+                                            break;
                                         default:
-                                            // Non deviation failure condition has been met. Trigger reset.
-                                            stepCondition = false;
+                                            // Non deviation relationship contain boolean success as the result
+                                            if(Relationships[rel.actor][rel.relative.ToString()][rel.relation]==Convert.ToSingle(true))
+                                            {
+                                                // Non deviation failure condition has been met. Trigger reset.
+                                                stepCondition = false;
+                                            }
                                             break;
                                     }
                                 }
@@ -214,7 +228,17 @@ namespace FreePiePlugin
                 {
                     sequence.progress = 0;
                     if (_callbackProcessing != null) { _callbackProcessing("Player " + ActiveSkeleton.TrackingId + " Gesture " + sequence.gesture + " Step Reset"); }
-                    foreach (JointType actor in JointsActorsUsed) { ReferenceRelationships[ActiveSkeleton.TrackingId][actor] = NormalizeJoint(ActiveSkeleton.Joints[actor]); }
+                    foreach (KeyValuePair<JointType, Dictionary<string, List<Relationship>>> actor in JointRelationshipsUsed)
+                    {
+                        if (!ReferenceRelationships[ActiveSkeleton.TrackingId].ContainsKey(actor.Key))
+                        {
+                            ReferenceRelationships[ActiveSkeleton.TrackingId].Add(actor.Key, NormalizeJoint(ActiveSkeleton.Joints[actor.Key]));
+                        }
+                        else
+                        {
+                            ReferenceRelationships[ActiveSkeleton.TrackingId][actor.Key] = NormalizeJoint(ActiveSkeleton.Joints[actor.Key]);
+                        }
+                    }
                 }
                 else
                 {
@@ -222,13 +246,13 @@ namespace FreePiePlugin
                     stepCondition = true;
                     foreach (var rel in gestureStep.SuccessConditions)
                     {
-                        if (!Relationships.ContainsKey(rel.actor)) { stepCondition = false; break; }
-                        if (!Relationships[rel.actor].ContainsKey(rel.relative)) { stepCondition = false; break; }
+                        // Console.WriteLine("Distance=" + Relationships[rel.actor][rel.relative.ToString()][Relationship.Distance] + " vs " + rel.deviation);
                         switch (rel.relation)
                         {
                             case Relationship.XChange:
                             case Relationship.YChange:
                             case Relationship.ZChange:
+                                // Check if deviation based success condition has exceeded the deviation limit
                                 if (rel.deviation < 0)
                                 {
                                     if (Relationships[rel.actor][rel.relative.ToString()][rel.relation] > rel.deviation) { stepCondition = false; break; }
@@ -238,8 +262,24 @@ namespace FreePiePlugin
                                     if (Relationships[rel.actor][rel.relative.ToString()][rel.relation] < rel.deviation) { stepCondition = false; break; }
                                 }
                                 break;
+                            case Relationship.Distance:
+                                // Check if distance based success condition has exceeded the deviation limit
+                                if (rel.deviation < 0)
+                                {
+                                    if (Relationships[rel.actor][rel.relative.ToString()][rel.relation] > Math.Abs(rel.deviation)) { stepCondition = false; break; }
+                                }
+                                else
+                                {
+                                    if (Relationships[rel.actor][rel.relative.ToString()][rel.relation] < rel.deviation) { stepCondition = false; break; }
+                                }
+                                break;
                             default:
-                                if (!Relationships[rel.actor][rel.relative.ToString()].ContainsKey(rel.relation)) { stepCondition = false; break; }
+                                // Non deviation relationship contain boolean success as the result
+                                if (Relationships[rel.actor][rel.relative.ToString()][rel.relation] == Convert.ToSingle(false))
+                                {
+                                    // Non deviation success condition has not been met
+                                    stepCondition = false; break;
+                                }
                                 break;
                         }
                     }
@@ -248,7 +288,18 @@ namespace FreePiePlugin
                     {
                         // Conditions for gesture step have been met
                         if (_callbackProcessing != null) { _callbackProcessing("Player " + ActiveSkeleton.TrackingId + " Has Completed Gesture " + sequence.gesture + " Step " + (sequence.progress + 1) + " Of " + sequence.steps.Count); }
-                        foreach (JointType actor in JointsActorsUsed) { ReferenceRelationships[ActiveSkeleton.TrackingId][actor] = NormalizeJoint(ActiveSkeleton.Joints[actor]); }
+                        if (!ReferenceRelationships.ContainsKey(ActiveSkeleton.TrackingId)) { ReferenceRelationships.Add(ActiveSkeleton.TrackingId,new Dictionary<JointType, SkeletonPoint>()); }
+                        foreach (KeyValuePair<JointType, Dictionary<string, List<Relationship>>> actor in JointRelationshipsUsed)
+                        {
+                            if (!ReferenceRelationships[ActiveSkeleton.TrackingId].ContainsKey(actor.Key))
+                            {
+                                ReferenceRelationships[ActiveSkeleton.TrackingId].Add(actor.Key,NormalizeJoint(ActiveSkeleton.Joints[actor.Key]));
+                            }
+                            else
+                            {
+                                ReferenceRelationships[ActiveSkeleton.TrackingId][actor.Key] = NormalizeJoint(ActiveSkeleton.Joints[actor.Key]);
+                            }
+                        }
                         sequence.progress++;
                         if (sequence.progress >= sequence.steps.Count())
                         {
@@ -273,6 +324,7 @@ namespace FreePiePlugin
                     }
                 }
             }
+            _callbackProcessing("Frame");
         }
 
         private void ProcessSkeletons(AllFramesReadyEventArgs e)
@@ -286,44 +338,67 @@ namespace FreePiePlugin
                 Skeletons = new Skeleton[skeletonData.SkeletonArrayLength];
                 skeletonData.CopySkeletonDataTo(Skeletons);
 
+                // Cycle Through Each Skeleton
                 foreach (Skeleton skeleton in Skeletons)
                 {
                     if (skeleton.TrackingState != SkeletonTrackingState.Tracked) { continue; }
+                    if (!Relationships.ContainsKey(skeleton.TrackingId)) { Relationships.Add(skeleton.TrackingId, new Dictionary<JointType, Dictionary<string, Dictionary<Relationship, Single>>>()); }
 
-                    if (!Relationships.ContainsKey(skeleton.TrackingId)) { Relationships.Add(skeleton.TrackingId, new Dictionary<JointType, Dictionary<string, Dictionary<Relationship, float>>>()); }
-
-                    foreach (JointType actor in JointsActorsUsed)
+                    // Cycle Through Each Actor
+                    foreach (KeyValuePair<JointType, Dictionary<string, List<Relationship>>> actor in JointRelationshipsUsed)
                     {
-                        SkeletonPoint actorPos = NormalizeJoint(skeleton.Joints[actor]);
-                        if (!Relationships[skeleton.TrackingId].ContainsKey(actor)) { Relationships[skeleton.TrackingId].Add(actor, new Dictionary<string, Dictionary<Relationship, float>>()); }
-                        foreach (JointType relative in JointsRelativesUsed)
+                        if (!Relationships[skeleton.TrackingId].ContainsKey(actor.Key)) { Relationships[skeleton.TrackingId].Add(actor.Key, new Dictionary<string, Dictionary<Relationship, Single>>()); }
+
+                        // Cycle Through Each Relative
+                        foreach (KeyValuePair<string, List<Relationship>> relative in actor.Value)
                         {
-                            SkeletonPoint relativePos = NormalizeJoint(skeleton.Joints[relative]);
-                            if (!Relationships[skeleton.TrackingId][actor].ContainsKey(relative.ToString())) { Relationships[skeleton.TrackingId][actor].Add(relative.ToString(), new Dictionary<Relationship, float>()); }
-                            if (actorPos.Y < (relativePos.Y * 0.9)) { Relationships[skeleton.TrackingId][actor][relative.ToString()].Add(Relationship.Below, (float)Math.Abs(actorPos.Y - (relativePos.Y * 0.9))); }
-                            else if (actorPos.Y > (relativePos.Y * 1.1)) { Relationships[skeleton.TrackingId][actor][relative.ToString()].Add(Relationship.Above, (float)Math.Abs(actorPos.Y - (relativePos.Y * 1.1))); }
-                            if (actorPos.X < (relativePos.X * 0.9)) { Relationships[skeleton.TrackingId][actor][relative.ToString()].Add(Relationship.LeftOf, (float)Math.Abs(actorPos.X - (relativePos.X * 0.9))); }
-                            else if (actorPos.X > (relativePos.X * 1.1)) { Relationships[skeleton.TrackingId][actor][relative.ToString()].Add(Relationship.RightOf, (float)Math.Abs(actorPos.X - (relativePos.X * 1.1))); }
-                            if (actorPos.Z < (relativePos.Z * 0.9)) { Relationships[skeleton.TrackingId][actor][relative.ToString()].Add(Relationship.InfrontOf, (float)Math.Abs(actorPos.Z - (relativePos.Z * 0.9))); }
-                            else if (actorPos.Z > (relativePos.Z * 1.1)) { Relationships[skeleton.TrackingId][actor][relative.ToString()].Add(Relationship.Behind, (float)Math.Abs(actorPos.Z - (relativePos.Z * 1.1))); }
+                            if (!Relationships[skeleton.TrackingId][actor.Key].ContainsKey(relative.Key)) { Relationships[skeleton.TrackingId][actor.Key].Add(relative.Key, new Dictionary<Relationship, Single>()); }
+
+                            // Cycle Through Each Relationship
+                            foreach(Relationship relation in relative.Value)
+                            {
+                                JointType? relativeJoint = relative.Key.ParseJoint();
+                                SkeletonPoint relativePos = new SkeletonPoint();
+                                if (relativeJoint != null) { relativePos = NormalizeJoint(skeleton.Joints[relativeJoint.Value]); } else { relativePos = StaticReferences[relative.Key]; }
+                                switch (relation)
+                                {
+                                    case Relationship.Above:
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.Z >= relativePos.Z));
+                                        break;
+                                    case Relationship.Below:
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.Z < relativePos.Z));
+                                        break;
+                                    case Relationship.Behind:
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.Y >= relativePos.Y));
+                                        break;
+                                    case Relationship.InfrontOf:
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.Y < relativePos.Y));
+                                        break;
+                                    case Relationship.RightOf:
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.X >= relativePos.X));
+                                        break;
+                                    case Relationship.LeftOf:
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.X < relativePos.X));
+                                        break;
+                                    case Relationship.Distance:
+                                        SkeletonPoint delta = NormalizeJoint(skeleton.Joints[actor.Key]);
+                                        delta.X = delta.X - relativePos.X; delta.Y = delta.Y - relativePos.Y; delta.Z = delta.Z - relativePos.Z;
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(Math.Sqrt((delta.X * delta.X) + (delta.Y * delta.Y) + (delta.Z * delta.Z))));
+                                        break;
+                                    case Relationship.XChange:
+                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].X - skeleton.Joints[actor.Key].Position.X); }
+                                        break;
+                                    case Relationship.YChange:
+                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].Y - skeleton.Joints[actor.Key].Position.Y); }
+                                        break;
+                                    case Relationship.ZChange:
+                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].Z - skeleton.Joints[actor.Key].Position.Z); }
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
                         }
-                        foreach (KeyValuePair<string, SkeletonPoint> reference in StaticReferences)
-                        {
-                            SkeletonPoint relativePos = reference.Value;
-                            if (!Relationships[skeleton.TrackingId][actor].ContainsKey(reference.Key)) { Relationships[skeleton.TrackingId][actor].Add(reference.Key, new Dictionary<Relationship, float>()); }
-                            if (actorPos.Y < (relativePos.Y * 0.9)) { Relationships[skeleton.TrackingId][actor][reference.Key].Add(Relationship.Above, (float)Math.Abs(actorPos.Y - (relativePos.Y * 0.9))); }
-                            else if (actorPos.Y > (relativePos.Y * 1.1)) { Relationships[skeleton.TrackingId][actor][reference.Key].Add(Relationship.Below, (float)Math.Abs(actorPos.Y - (relativePos.Y * 1.1))); }
-                            if (actorPos.X < (relativePos.X * 0.9)) { Relationships[skeleton.TrackingId][actor][reference.Key].Add(Relationship.LeftOf, (float)Math.Abs(actorPos.X - (relativePos.X * 0.9))); }
-                            else if (actorPos.X > (relativePos.X * 1.1)) { Relationships[skeleton.TrackingId][actor][reference.Key].Add(Relationship.RightOf, (float)Math.Abs(actorPos.X - (relativePos.X * 1.1))); }
-                            if (actorPos.Z < (relativePos.Z * 0.9)) { Relationships[skeleton.TrackingId][actor][reference.Key].Add(Relationship.InfrontOf, (float)Math.Abs(actorPos.Z - (relativePos.Z * 0.9))); }
-                            else if (actorPos.Z > (relativePos.Z * 1.1)) { Relationships[skeleton.TrackingId][actor][reference.Key].Add(Relationship.Behind, (float)Math.Abs(actorPos.Z - (relativePos.Z * 1.1))); }
-                        }
-                        if (!ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { ReferenceRelationships.Add(skeleton.TrackingId, new Dictionary<JointType, SkeletonPoint>()); }
-                        if (!ReferenceRelationships[skeleton.TrackingId].ContainsKey(actor)) { ReferenceRelationships[skeleton.TrackingId].Add(actor, NormalizeJoint(skeleton.Joints[actor])); }
-                        if (!Relationships[skeleton.TrackingId][actor].ContainsKey(actor.ToString())) { Relationships[skeleton.TrackingId][actor].Add(actor.ToString(), new Dictionary<Relationship, float>()); }
-                        Relationships[skeleton.TrackingId][actor][actor.ToString()].Add(Relationship.XChange, actorPos.X - ReferenceRelationships[skeleton.TrackingId][actor].X);
-                        Relationships[skeleton.TrackingId][actor][actor.ToString()].Add(Relationship.YChange, actorPos.Y - ReferenceRelationships[skeleton.TrackingId][actor].Y);
-                        Relationships[skeleton.TrackingId][actor][actor.ToString()].Add(Relationship.ZChange, actorPos.Z - ReferenceRelationships[skeleton.TrackingId][actor].Z);
                     }
                     ProcessGestures(skeleton, Relationships[skeleton.TrackingId]);
                 }
