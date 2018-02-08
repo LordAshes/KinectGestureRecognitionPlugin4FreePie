@@ -30,8 +30,13 @@ possibly static reference points) can have between each other.
         Below
         InfrontOf
         LeftOf
-        None
         RightOf
+	Distance*
         XChange
         YChange
-        ZChange
+        ZChange	
+        None**
+
+* Added as of Version 2. See Section 6 for details.
+** This relationship is used internally and should not be used in gesture configuration.
+

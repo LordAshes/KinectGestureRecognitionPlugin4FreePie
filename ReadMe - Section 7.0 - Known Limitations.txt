@@ -14,12 +14,11 @@ Reference point can be set up and then based on the user's relation (LeftOf, Rig
 feedback messages can be generated to tell the user to move Left, Right, Forward and backward in
 order to calibrate the user to the reference points.
 
+
 7.2 Player References
 
-Currently the system does not identify the number of players and/or when players leave the field of
-view of the sensor. This means that a user who steps out of view and then returns may be assigned a
-new player Id but the plugin user will not know that the old player Id is no longer used (beside the
-fact that no gestures will be generated for that player Id).
+This limitation has been resolved using the player event messages.
+
 
 7.3 Uni-Player Relations
 

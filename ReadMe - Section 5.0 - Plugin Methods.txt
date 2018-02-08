@@ -96,46 +96,19 @@ of the add methods.
 
 GetRecognizedGesture(bool clear = true)
 
-This method is used to read all unread recognized gestures. The method returns a dictionary
-indexed by the player Id with the value being a list of gestures. When a gesture is recognized
-the name of the gesture is placed in this gesture list keyed by the player ID that generated
-the gesture.
-
-By default, when this method is used, the dictionary is cleared so that successive uses of
-this method will show only new dictionary items. However, if the method is called with the
-optional parameter set to false then the dictionary will be returned without being cleared.
-This allows looking at the dictionary without processing it.
+This method has been removed as of Version 2. Player and gesture information is now returned
+as part of the event (see section 4 for details).
 
 GetRecognizedGestureByPlayerId(bool clear = true)
 
-This method is used to read all unread recognized gestures for a specific played ID. The method
-returns a list of gesture names.
-
-By default, when this method is used, the gesture list is cleared so that successive uses of
-this method will show only new gesture lists. However, if the method is called with the optional
-parameter set to false then the list will be returned without being cleared. This allows
-looking at the list without processing it.
+This method has been removed as of Version 2. Player and gesture information is now returned
+as part of the event (see section 4 for details).
 
 GetRecognitionProcessEvents(bool clear = true)
 
-Recognized gestures are normally reported back using one of the two previous methods but these
-methods report back only completed geatures. If one is interested in the recognition process
-such as which step has been passed in a gesture sequence this method can be used to read all
-processing events. The method returns a list of strings which describe the processing event
-that occured. 
+This method has been removed as of Version 2. Player and gesture information is now returned
+as part of the event (see section 4 for details).
 
-By default, when this method is used, the gesture list is cleared so that successive uses of
-this method will show only new gesture lists. However, if the method is called with the optional
-parameter set to false then the list will be returned without being cleared. This allows
-looking at the list without processing it.
+Version()
 
-Note: Player Ids are integer values assigned by the Kinect Sensor to players. It should be
-assumed that these values are generated arbitrarily and thus the values can start at any
-number and may not be successive for multiple players. The only assurace is that gestures that
-are generated from the same player will be reported using the same player Id until the script
-is stopped, the sensor is stopped or the user leaves the visible area of the sensor. This last
-part is very important since, at the moment, there is no indication of the number of players
-being tracked and thus no indication if a player has left the visible area of the sensor. As
-such, if a player leaves the visible area of the sensor and then returns, he/she will likley
-be assigned a new player Id but there isn't any feedback to say that an old player Id is no
-longer being used.
+Returns the version of the Kinect Gesture Recognition Plugin.
