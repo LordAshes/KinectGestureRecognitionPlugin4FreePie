@@ -458,19 +458,50 @@ namespace FreePiePlugin
             }
             if (skeleton != null)
             {
+                Microsoft.Kinect.SkeletonPoint jointPos = this.thisKinectGesturePlugin.gestureProcessor.NormalizeJoint(skeleton.Joints[(Microsoft.Kinect.JointType)joint]);
                 return new OrientationInfo()
                 {
                     playerId = skeleton.TrackingId,
                     tracked = (skeleton.Joints[(Microsoft.Kinect.JointType)joint].TrackingState != Microsoft.Kinect.JointTrackingState.NotTracked),
-                    X = skeleton.Joints[(Microsoft.Kinect.JointType)joint].Position.X,
-                    Y = skeleton.Joints[(Microsoft.Kinect.JointType)joint].Position.Y,
-                    Z = skeleton.Joints[(Microsoft.Kinect.JointType)joint].Position.Z,
+                    X = jointPos.X,
+                    Y = jointPos.Y,
+                    Z = jointPos.Z,
                 };
             }
             else
             {
                 return null;
             }
+        }
+
+        public float GetRelationshipInfo(KinectJoint actor, KinectJointRelationship relation, string relative)
+        {
+            if (this.thisKinectGesturePlugin == null) { return float.NaN; }
+            if (this.thisKinectGesturePlugin.gestureProcessor == null) { return float.NaN; }
+            if (this.thisKinectGesturePlugin.gestureProcessor.Skeletons == null) { return float.NaN; }
+            Microsoft.Kinect.Skeleton skeleton = null;
+            foreach (Microsoft.Kinect.Skeleton s in this.thisKinectGesturePlugin.gestureProcessor.Skeletons) { if (s.TrackingState != Microsoft.Kinect.SkeletonTrackingState.NotTracked) { skeleton = s; break; } }
+            if (skeleton != null)
+            {
+                if (this.thisKinectGesturePlugin.gestureProcessor.Relationships.ContainsKey(skeleton.TrackingId))
+                {
+                    if (this.thisKinectGesturePlugin.gestureProcessor.Relationships[skeleton.TrackingId].ContainsKey((Microsoft.Kinect.JointType)actor))
+                    {
+                        if (this.thisKinectGesturePlugin.gestureProcessor.Relationships[skeleton.TrackingId][(Microsoft.Kinect.JointType)actor].ContainsKey(relative))
+                        {
+                            if(this.thisKinectGesturePlugin.gestureProcessor.Relationships[skeleton.TrackingId][(Microsoft.Kinect.JointType)actor][relative].ContainsKey((GestureParser.Relationship)relation))
+                            {
+                                return this.thisKinectGesturePlugin.gestureProcessor.Relationships[skeleton.TrackingId][(Microsoft.Kinect.JointType)actor][relative][(GestureParser.Relationship)relation];
+                            }
+                            return float.NaN;
+                        }
+                        return float.NaN;
+                    }
+                    return float.NaN;
+                }
+                return float.NaN;
+            }
+            return float.NaN;
         }
 
         public string Version()

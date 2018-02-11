@@ -347,6 +347,7 @@ namespace FreePiePlugin
                     // Cycle Through Each Actor
                     foreach (KeyValuePair<JointType, Dictionary<string, List<Relationship>>> actor in JointRelationshipsUsed)
                     {
+                        SkeletonPoint actorPos = NormalizeJoint(skeleton.Joints[actor.Key]);
                         if (!Relationships[skeleton.TrackingId].ContainsKey(actor.Key)) { Relationships[skeleton.TrackingId].Add(actor.Key, new Dictionary<string, Dictionary<Relationship, Single>>()); }
 
                         // Cycle Through Each Relative
@@ -363,36 +364,37 @@ namespace FreePiePlugin
                                 switch (relation)
                                 {
                                     case Relationship.Above:
-                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.Z >= relativePos.Z));
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(actorPos.Y >= relativePos.Y));
                                         break;
                                     case Relationship.Below:
-                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.Z < relativePos.Z));
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(actorPos.Y < relativePos.Y));
                                         break;
                                     case Relationship.Behind:
-                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.Y >= relativePos.Y));
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(actorPos.Z >= relativePos.Z));
                                         break;
                                     case Relationship.InfrontOf:
-                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.Y < relativePos.Y));
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(actorPos.Z < relativePos.Z));
                                         break;
                                     case Relationship.RightOf:
-                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.X >= relativePos.X));
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(actorPos.X >= relativePos.X));
                                         break;
                                     case Relationship.LeftOf:
-                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(skeleton.Joints[actor.Key].Position.X < relativePos.X));
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(actorPos.X < relativePos.X));
                                         break;
                                     case Relationship.Distance:
-                                        SkeletonPoint delta = NormalizeJoint(skeleton.Joints[actor.Key]);
-                                        delta.X = delta.X - relativePos.X; delta.Y = delta.Y - relativePos.Y; delta.Z = delta.Z - relativePos.Z;
-                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(Math.Sqrt((delta.X * delta.X) + (delta.Y * delta.Y) + (delta.Z * delta.Z))));
+                                        actorPos.X = actorPos.X - relativePos.X; actorPos.Y = actorPos.Y - relativePos.Y; actorPos.Z = actorPos.Z - relativePos.Z;
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(Math.Sqrt((actorPos.X * actorPos.X) + (actorPos.Y * actorPos.Y) + (actorPos.Z * actorPos.Z))));
                                         break;
                                     case Relationship.XChange:
-                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].X - skeleton.Joints[actor.Key].Position.X); }
+                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].X - actorPos.X); }
                                         break;
                                     case Relationship.YChange:
-                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].Y - skeleton.Joints[actor.Key].Position.Y); }
+                                        float curY = NormalizeJoint(skeleton.Joints[actor.Key]).Y;
+                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].Y - actorPos.Y); }
                                         break;
                                     case Relationship.ZChange:
-                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].Z - skeleton.Joints[actor.Key].Position.Z); }
+                                        float curZ = NormalizeJoint(skeleton.Joints[actor.Key]).Z;
+                                        if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].Z - actorPos.Z); }
                                         break;
                                     default:
                                         break;
