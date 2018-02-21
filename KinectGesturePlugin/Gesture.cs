@@ -174,7 +174,7 @@ namespace FreePiePlugin
                 GestureSequenceStep gestureStep = sequence.steps[sequence.progress];
                 // Check if conditions for reset have been met
                 bool stepCondition = true;
-                if (sequence.progress > 0)
+                // if (sequence.progress > 0)
                 {
                     foreach (var rel in gestureStep.FailureConditions)
                     {
@@ -228,6 +228,7 @@ namespace FreePiePlugin
                 {
                     sequence.progress = 0;
                     if (_callbackProcessing != null) { _callbackProcessing("Player " + ActiveSkeleton.TrackingId + " Gesture " + sequence.gesture + " Step Reset"); }
+                    if (!ReferenceRelationships.ContainsKey(ActiveSkeleton.TrackingId)) { ReferenceRelationships.Add(ActiveSkeleton.TrackingId, new Dictionary<JointType, SkeletonPoint>()); }
                     foreach (KeyValuePair<JointType, Dictionary<string, List<Relationship>>> actor in JointRelationshipsUsed)
                     {
                         if (!ReferenceRelationships[ActiveSkeleton.TrackingId].ContainsKey(actor.Key))
