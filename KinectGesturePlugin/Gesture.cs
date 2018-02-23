@@ -383,8 +383,8 @@ namespace FreePiePlugin
                                         Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(actorPos.X < relativePos.X));
                                         break;
                                     case Relationship.Distance:
-                                        actorPos.X = actorPos.X - relativePos.X; actorPos.Y = actorPos.Y - relativePos.Y; actorPos.Z = actorPos.Z - relativePos.Z;
-                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(Math.Sqrt((actorPos.X * actorPos.X) + (actorPos.Y * actorPos.Y) + (actorPos.Z * actorPos.Z))));
+                                        SkeletonPoint deltaPos = new SkeletonPoint(){ X = actorPos.X - relativePos.X, Y = actorPos.Y - relativePos.Y, Z = actorPos.Z - relativePos.Z };
+                                        Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, Convert.ToSingle(Math.Sqrt((deltaPos.X * deltaPos.X) + (deltaPos.Y * deltaPos.Y) + (deltaPos.Z * deltaPos.Z))));
                                         break;
                                     case Relationship.XChange:
                                         if (ReferenceRelationships.ContainsKey(skeleton.TrackingId)) { Relationships[skeleton.TrackingId][actor.Key][relative.Key].Add(relation, ReferenceRelationships[skeleton.TrackingId][actor.Key].X - actorPos.X); }
