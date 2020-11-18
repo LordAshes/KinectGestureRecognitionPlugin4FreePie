@@ -7,15 +7,29 @@ using FreePiePlugin.ExtensionMethods;
 
 namespace FreePiePlugin
 {
+    /// <summary>
+    /// Class for parsing gestures
+    /// </summary>
     public class GestureParser
     {
+        /// <summary>
+        /// Constructor which takes a Kinect sensor and a gesture and processing callback function
+        /// </summary>
+        /// <param name="sensor">Kinect sensor object which is to be used for gesture recognition</param>
+        /// <param name="gesturesCallback">Callback function for recognized gestures</param>
+        /// <param name="gestureProcessingCallback">Callback function for partially recognized gestures</param>
         public GestureParser(KinectSensor sensor, Action<GestureResult> gesturesCallback, Action<string> gestureProcessingCallback = null)
         {
+            // Sets local references to the provided parameters
             _sensor = sensor;
             _callbackGesture = gesturesCallback;
             _callbackProcessing = gestureProcessingCallback;
         }
 
+        /// <summary>
+        /// Function for reading an XML file with a list of gesture sequences and deserializing it into a local List<GestureSequences> object
+        /// </summary>
+        /// <param name="gestureFile">Drive, path and file name of the file containing the list of gesture sequences</param>
         public void GestureFromFile(string gestureFile)
         {
             System.Xml.Serialization.XmlSerializer xml = new System.Xml.Serialization.XmlSerializer(typeof(List<GestureSequences>));
@@ -24,6 +38,10 @@ namespace FreePiePlugin
             xmlFile.Close();
         }
 
+        /// <summary>
+        /// Function for serializing a local List<GestureSequences> object into XML and writing it to a file
+        /// </summary>
+        /// <param name="gestureFile">Drive, path and file name of the file to which the contents should be written</param>
         public void GestureToFile(string gestureFile)
         {
             System.Xml.Serialization.XmlSerializer xml = new System.Xml.Serialization.XmlSerializer(typeof(List<GestureSequences>));
@@ -32,6 +50,10 @@ namespace FreePiePlugin
             xmlFile.Close();
         }
 
+        /// <summary>
+        /// Function for reading an XML file with a list of static points and deserializing and adding them to a local dictionary
+        /// </summary>
+        /// <param name="pointsFile">Drive, path and file name of the file containing the static points</param>
         public void StaticPointsFromFile(string pointsFile)
         {
             System.Xml.Serialization.XmlSerializer xml = new System.Xml.Serialization.XmlSerializer(typeof(List<StaticPoint>));
@@ -40,6 +62,10 @@ namespace FreePiePlugin
             xmlFile.Close();
         }
 
+        /// <summary>
+        /// Function for serializing a local dictionary containing static points into XML and writing it to a file
+        /// </summary>
+        /// <param name="gestureFile">Drive, path and file name of the file to which the contents should be written</param>
         public void StaticPointsToFile(string gestureFile)
         {
             List<StaticPoint> points = new List<StaticPoint>();
@@ -50,13 +76,19 @@ namespace FreePiePlugin
             xmlFile.Close();
         }
 
+        /// <summary>
+        /// Function for starting the tracking of the Kinect skeleton in order to recognize gestures
+        /// </summary>
+        /// <param name="trackingMode">Kinect tracking mode</param>
         public void Start(SkeletonTrackingMode trackingMode = SkeletonTrackingMode.Default)
         {
+            // Ensure a sensor has been specified
             if (_sensor != null)
             {
                 TrackingMode = trackingMode;
                 if (_callbackProcessing != null) { _callbackProcessing("Tracking Mode Set To " + TrackingMode.ToString()); }
 
+                // Build joint relationships based on the provided information
                 JointRelationshipsUsed.Clear();
                 foreach (GestureSequences gestureSequence in Gestures)
                 {
@@ -77,6 +109,7 @@ namespace FreePiePlugin
                     }
                 }
 
+                // Enabled Kinect tracking with callback to ProcessSkeleton when each Kinect frame is ready
                 _sensor.SkeletonStream.Enable();
                 _sensor.ColorStream.Enable(ColorImageFormat.RgbResolution640x480Fps30);
                 _sensor.DepthStream.Enable(DepthImageFormat.Resolution640x480Fps30);
@@ -85,6 +118,9 @@ namespace FreePiePlugin
             }
         }
 
+        /// <summary>
+        /// Function for stopping tracking
+        /// </summary>
         public void Stop()
         {
             if (_sensor != null)
@@ -97,18 +133,33 @@ namespace FreePiePlugin
             }
         }
 
+        // Holds Gesture Sequences (i.e. the individual steps in a gesture for a gesture to be recognized)
         public List<GestureSequences> Gestures = new List<GestureSequences>();
+
+        // Holds Static References (i.e. absolute points as opposed to relative points)
         public Dictionary<string, SkeletonPoint> StaticReferences = new Dictionary<string, SkeletonPoint>();
+
+        // Reference to the Kinect skeletons (Kinect is capable of tracking multiple skeletons)
         public Skeleton[] Skeletons = null;
+
+        // Dictionary for holding relationships between joints
         public Dictionary<int, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, Single>>>> Relationships = new Dictionary<int, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, Single>>>>();
+
+        // Reference to the tracking mode used 
         public SkeletonTrackingMode TrackingMode { get; private set; } = SkeletonTrackingMode.Default;
 
+        /// <summary>
+        /// Class for holding a gesture result inclduing identification of the player and a string indicating the gesture that was recognized
+        /// </summary>
         public class GestureResult
         {
             public int Player;
             public string Gesture;
         }
 
+        /// <summary>
+        /// class for holding a static point including identification and a Kinect SkeletonPoint
+        /// </summary>
         [Serializable]
         public class StaticPoint
         {
@@ -116,6 +167,9 @@ namespace FreePiePlugin
             public SkeletonPoint position { get; set; }
         }
 
+        /// <summary>
+        /// Enumeration of possible joint relationships
+        /// </summary>
         [Serializable]
         public enum Relationship
         {
@@ -132,6 +186,9 @@ namespace FreePiePlugin
             ZChange
         }
 
+        /// <summary>
+        /// Class for holding joint relationships
+        /// </summary>
         [Serializable]
         public class JointRelationship
         {
@@ -141,6 +198,9 @@ namespace FreePiePlugin
             public int deviation { get; set; } = 0;
         }
 
+        /// <summary>
+        /// Classs for GestureSequenceStep which includes list of successful steps conditions and failure conditions 
+        /// </summary>
         [Serializable]
         public class GestureSequenceStep
         {
@@ -148,6 +208,9 @@ namespace FreePiePlugin
             public List<JointRelationship> FailureConditions { get; set; } = new List<JointRelationship>();
         }
 
+        /// <summary>
+        /// Class for holding GestureSequences including a list of GestureSequenceStep
+        /// </summary>
         [Serializable]
         public class GestureSequences
         {
@@ -158,15 +221,29 @@ namespace FreePiePlugin
             public int progress { get; set; } = 0;
         }
 
+        // Reference for holding used joint relationships. Only used relationships are evaluated during the recognition stage to increase performance (as opposed to evaluating all possible joint relationships)
         private Dictionary<JointType,Dictionary<string,List<Relationship>>> JointRelationshipsUsed = new Dictionary<JointType, Dictionary<string, List<Relationship>>>();
+
+        // Reference between joints and the Kinect skeleton
         private Dictionary<int, Dictionary<JointType, SkeletonPoint>> ReferenceRelationships = new Dictionary<int, Dictionary<JointType, SkeletonPoint>>();
 
+        // Timers for each players by which a gesture sequence must complete in order to be recognized. If the timer expires the gesture sequence is reset.
         private Dictionary<int, Dictionary<string, System.Timers.Timer>> Players = new Dictionary<int, Dictionary<string, System.Timers.Timer>>();
 
+        // Reference to the completed gesture callback function
         private Action<GestureResult> _callbackGesture = null;
+
+        // Reference to the partial gesture completed callback function
         private Action<string> _callbackProcessing = null;
+
+        // Reference to the Kiect sensor being used
         private KinectSensor _sensor = null;
 
+        /// <summary>
+        /// Function for processing gesture recognition
+        /// </summary>
+        /// <param name="ActiveSkeleton">Kinect skeleton being evaluated</param>
+        /// <param name="Relationships">Dictionary of relationships to evaluate</param>
         private void ProcessGestures(Skeleton ActiveSkeleton, Dictionary<JointType, Dictionary<string, Dictionary<Relationship, Single>>> Relationships)
         {
             foreach (GestureSequences sequence in Gestures)
@@ -174,8 +251,8 @@ namespace FreePiePlugin
                 GestureSequenceStep gestureStep = sequence.steps[sequence.progress];
                 // Check if conditions for reset have been met
                 bool stepCondition = true;
-                // if (sequence.progress > 0)
                 {
+                    // Check to see if any failure condition is true
                     foreach (var rel in gestureStep.FailureConditions)
                     {
                         if (Relationships.ContainsKey(rel.actor))
@@ -224,6 +301,7 @@ namespace FreePiePlugin
                         }
                     }
                 }
+                // If any failure conditions have been met, reset the gesture recognition sequence
                 if (stepCondition == false)
                 {
                     sequence.progress = 0;
@@ -241,6 +319,7 @@ namespace FreePiePlugin
                         }
                     }
                 }
+                // Otherwise check if any success conditions have been met
                 else
                 {
                     // Check if conditions for gesture step have been met
@@ -304,7 +383,7 @@ namespace FreePiePlugin
                         sequence.progress++;
                         if (sequence.progress >= sequence.steps.Count())
                         {
-                            // Gesture steps complete!
+                            // If all steps in the sequence have been completed then gesture has been recognized
                             if (Players.ContainsKey(ActiveSkeleton.TrackingId)) { if (Players[ActiveSkeleton.TrackingId].ContainsKey(sequence.gesture)) { Players[ActiveSkeleton.TrackingId][sequence.gesture].Enabled = false; } }
                             sequence.progress = 0;
                             if (_callbackProcessing != null) { _callbackProcessing("Player " + ActiveSkeleton.TrackingId + " Has Completed Gesture " + sequence.gesture); }
@@ -328,8 +407,13 @@ namespace FreePiePlugin
             _callbackProcessing("Frame");
         }
 
+        /// <summary>
+        /// Function for processing each skeleton
+        /// </summary>
+        /// <param name="e">All frames ready event arguments</param>
         private void ProcessSkeletons(AllFramesReadyEventArgs e)
         {
+            // Clear current relationship results
             Relationships.Clear();
 
             using (SkeletonFrame skeletonData = e.OpenSkeletonFrame())
@@ -403,6 +487,7 @@ namespace FreePiePlugin
                             }
                         }
                     }
+                    // Now that the current relationships have been determined process the result for gesture recognition
                     ProcessGestures(skeleton, Relationships[skeleton.TrackingId]);
                 }
             }
