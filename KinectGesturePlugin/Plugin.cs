@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using FreePIE.Core.Contracts;
 
+/// <summary>
+/// Code for recognizing the resulting library as a FreePie plugin. This allows the FeePie interface to interact with the library.
+/// </summary>
 namespace FreePiePlugin
 {
+    // Expose enumerations to FreePie
     [GlobalEnum]
     public enum KinectJoint
     {
@@ -30,6 +34,7 @@ namespace FreePiePlugin
         WristRight = Microsoft.Kinect.JointType.WristRight
     }
 
+    // Expose enumerations to FreePie
     [GlobalEnum]
     public enum KinectJointRelationship
     {
@@ -46,6 +51,7 @@ namespace FreePiePlugin
         ZChange = GestureParser.Relationship.ZChange
     }
 
+    // Expose class to FreePie
     [Global(Name = "KinectGestureObjectInfo")]
     public class OrientationInfo
     {
@@ -56,6 +62,7 @@ namespace FreePiePlugin
         public float Z { get; set; }
     }
 
+    // Main plugin class
     [GlobalType(Type = typeof(KinectGesture))]
     public class KinectGesturePlugin : IPlugin
     {
@@ -82,6 +89,7 @@ namespace FreePiePlugin
             return this.global;
         }
 
+        // Initializes the plugin
         public Action Start()
         {
             kinectSensor = new SensorSelector((s) =>
@@ -115,6 +123,7 @@ namespace FreePiePlugin
             return null;
         }
 
+        // Stops the plugin
         public void Stop()
         {
             if (gestureProcessor != null)
@@ -127,11 +136,13 @@ namespace FreePiePlugin
             kinectSensor = null;
         }
 
+        // Exposed plugin name
         public string FriendlyName
         {
             get { return "Kinect Gesture Recognition Plugin"; }
         }
 
+        // Exposes plugin properties which can be set using the FreePie environment
         public bool GetProperty(int index, IPluginProperty property)
         {
             switch (index)
@@ -160,6 +171,7 @@ namespace FreePiePlugin
             return false;
         }
 
+        // Allows setting of the plugin properties through the FreePie environment
         public bool SetProperties(Dictionary<string, object> properties)
         {
             this.properties = properties;
@@ -228,28 +240,33 @@ namespace FreePiePlugin
             }
         }
 
+        // Exposes the library Start function
         public void StartRecognition()
         {
             gestureProcessor.Start();
         }
 
+        // Exposes the library Stop function
         public void StopRecognition()
         {
             gestureProcessor.Stop();
         }
 
+        // Exposes the library's ability to add a gesture
         public void AddGesture(string gestureName)
         {
             lastGesture = new GestureParser.GestureSequences() { gesture = gestureName };
             gestureProcessor.Gestures.Add(lastGesture);
         }
 
+        // Exposes the library's ability to set the gesture timeout
         public void SetGestureTimeout(long timeout, string gestureName = null)
         {
             if (gestureName != null) { lastGesture = GetGesture(gestureName); }
             lastGesture.timeout = timeout;
         }
 
+        // Exposes the library's ability to add a gesture step
         public int AddGestureStep(string gestureName = null)
         {
             if (gestureName != null) { lastGesture = GetGesture(gestureName); }
@@ -259,6 +276,7 @@ namespace FreePiePlugin
             return lastStep;
         }
 
+        // Exposes the library's ability to add a gesture step's success condition
         public int AddGestureStepSuccessRelationship(KinectJoint actor, KinectJointRelationship relationship, string relative, int deviation, int stepNumber = -1, string gestureName = null)
         {
             if (gestureName != null) { lastGesture = GetGesture(gestureName); }
@@ -275,6 +293,7 @@ namespace FreePiePlugin
             return lastSuccessCondition;
         }
 
+        // Exposes the library's ability to add a gesture step's failure condition
         public int AddGestureStepFailureRelationship(KinectJoint actor, KinectJointRelationship relationship, string relative, int deviation, int stepNumber = -1, string gestureName = null)
         {
             if (gestureName != null) { lastGesture = GetGesture(gestureName); }
@@ -291,11 +310,13 @@ namespace FreePiePlugin
             return lastFailureCondition;
         }
 
+        // Exposes the library's ability to add a static reference point
         public void AddGestureStaticReferencePoint(string referenceName, float x, float y, float z)
         {
             gestureProcessor.StaticReferences.Add(referenceName, new Microsoft.Kinect.SkeletonPoint() { X = x, Y = y, Z = z });
         }
 
+        // Exposes the library's ability to set a gesture step's success relationship
         public void SetGestureStepSuccessRelationship(string gestureName, int stepNumber, int conditionNumber, KinectJoint actor, KinectJointRelationship relationship, string relative, int deviation = 0)
         {
             lastGesture = GetGesture(gestureName);
@@ -306,6 +327,7 @@ namespace FreePiePlugin
             lastGesture.steps.ElementAt(stepNumber).SuccessConditions.ElementAt(conditionNumber).deviation = deviation;
         }
 
+        // Exposes the library's ability to set a gesture step's failure relationship
         public void SetGestureStepFailureRelationship(string gestureName, int stepNumber, int conditionNumber, KinectJoint actor, KinectJointRelationship relationship, string relative, int deviation = 0)
         {
             lastGesture = GetGesture(gestureName);
@@ -316,6 +338,7 @@ namespace FreePiePlugin
             lastGesture.steps.ElementAt(stepNumber).FailureConditions.ElementAt(conditionNumber).deviation = deviation;
         }
 
+        // Exposes the library's ability to get a gesture
         private GestureParser.GestureSequences GetGesture(string gestureName)
         {
             foreach (GestureParser.GestureSequences gesture in gestureProcessor.Gestures)
